@@ -16,7 +16,7 @@ module.exports = function (res, filePath, cType, cf) {
             content = data.toString( 'utf-8' );
         }
         else {
-            content = "Can't find the file " + filePath;
+            content = "404 not found!";
         }
 
         send(res, content, cType);
