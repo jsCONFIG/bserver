@@ -1,7 +1,11 @@
 {
     "ALIAS_HOST": {},
     "LOCAL_DIR": "./",
-    "MONITOR_PATH": [
+    "ALL_TO_LOCAL": false,
+    "TO_LOCAL_PATH": [
         
+    ],
+    "TO_LOCAL_HOST": [
+
     ]
 }

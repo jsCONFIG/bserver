@@ -17,15 +17,7 @@ var local = require('./local');
 var send = require('./send');
 
 // 读配置信息
-var CONFIG = {},
-    CONFIG_PATH = path.join(__dirname, 'config.json');
-
-fs.readFile( CONFIG_PATH, function( err, data ){
-    if( !err ) {
-        CONFIG = JSON.parse( data.toString( 'utf-8' ) || '{}' );
-
-    }
-});
+var CONFIG = require('./config.json');
 
 var reg = {
     file: /^.*\.([a-zA-Z\_0-9]+)$/
@@ -33,6 +25,7 @@ var reg = {
 
 var getCtype = function (fPath) {
     var matchArr = fPath.match(reg.file);
+    console.log(fPath);
     if (matchArr) {
         return ctype[matchArr[1]];
     }
@@ -45,9 +38,9 @@ var checkList = function (listArr, pathStr) {
 
     listArr.forEach( function (listItem, listIndex) {
         if(!flag) {
-            var pos = pathStr.indexOf(listItem.keyword);
+            var pos = pathStr.indexOf(listItem);
             if (pos != -1) {
-                flag = listItem;
+                flag = true;
                 return false;
             }
         }
@@ -57,13 +50,22 @@ var checkList = function (listArr, pathStr) {
 };
 
 // 判断当前路径是否需要监听，需要则返回true，否则返回false
-var isPathNeedMonitor = function ( pathStr ){
+var isNeedToLocal = function (pathStr, myHost){
     var flag = false;
 
-    // 如果选择性监听或监听全部
-    if(CONFIG.MONITOR_PATH && CONFIG.MONITOR_PATH.length) {
-        // 略过目录列表走线上，过滤器通过
-        flag = checkList(CONFIG.MONITOR_PATH, pathStr);
+    // 判断是否全走本地
+    if (CONFIG.ALL_TO_LOCAL) {
+        return true;
+    }
+
+    // 判断该Host是否走本地
+    if (CONFIG.TO_LOCAL_HOST) {
+        flag = (CONFIG.TO_LOCAL_HOST || []).indexOf(myHost) != -1;
+    }
+
+    // 判断该路径是否走本地
+    if (!flag && CONFIG.TO_LOCAL_PATH && CONFIG.TO_LOCAL_PATH.length) {
+        flag = checkList(CONFIG.TO_LOCAL_PATH, pathStr);
     }
 
     return flag;
@@ -83,8 +85,10 @@ http.createServer(function ( req, res ){
     // console.log(req);
     // return;
 
-    var srcPath = (req.headers.host + (req.path || '')),
-        localPath = isPathNeedMonitor(srcPath);
+    var currentHost = req.headers.host,
+        srcPath = (currentHost + (urlInfo.path || '')),
+        localPath = isNeedToLocal(srcPath, currentHost);
+
 
     var cType = getCtype(srcPath);
     if (!cType) {
@@ -92,10 +96,8 @@ http.createServer(function ( req, res ){
     }
 
     if (localPath) {
-        if (localPath.local){
-            local(res, localPath.local, cType, CONFIG);
+            local(res, CONFIG.LOCAL_DIR + (urlInfo.path || ''), cType, CONFIG);
             return;
-        }
     }
 
     online(req, res, srcPath, function (content) {
